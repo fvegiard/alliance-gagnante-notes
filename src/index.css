@@ -1,0 +1,223 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-base: #000000;
+    --color-foreground: #e0e0e0;
+    --color-dim: #999999;
+    --color-subtle: #555555;
+    --color-muted: #333333;
+    --color-accent: #ff2d78;   /* punk pink */
+    --color-link: #a3ff12;     /* acid green */
+    --color-success: #7dac5a;
+    --color-danger: #c45a5a;
+    --color-warning: #ffe600;  /* hazard yellow */
+    --color-border: #1a1a1a;
+
+    /* Tailwind/shadcn theme tokens — punk */
+    --accent: 335 100% 59%;          /* #ff2d78 */
+    --accent-foreground: 0 0% 100%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 88%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 60%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 88%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 88%;
+    --primary: 335 100% 59%;
+    --primary-foreground: 0 0% 100%;
+    --border: 0 0% 12%;
+    --ring: 335 100% 59%;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #000;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* ── Liquid Glass ── */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.01);
+  background-blend-mode: luminosity;
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  border: none;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.15) 20%,
+    rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
+    rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.5) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.25;
+}
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255,255,255,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 35% at 65% 10%, rgba(255,255,255,0.08) 0%, transparent 50%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.liquid-glass-strong {
+  background: rgba(255, 255, 255, 0.01);
+  background-blend-mode: luminosity;
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  border: none;
+  box-shadow:
+    4px 4px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+.liquid-glass-strong::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.15) 20%,
+    rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
+    rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.5) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.3;
+}
+.liquid-glass-strong::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255,255,255,0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 35% at 65% 10%, rgba(255,255,255,0.1) 0%, transparent 50%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* ── Markdown ── */
+.md-body h1 { font-size: 1.5em; font-weight: 600; margin: 1em 0 0.4em; color: #e0e0e0; }
+.md-body h2 { font-size: 1.2em; font-weight: 600; margin: 0.8em 0 0.3em; color: #e0e0e0; }
+.md-body h3 { font-size: 1.05em; font-weight: 600; margin: 0.6em 0 0.2em; color: #e0e0e0; }
+.md-body p { margin: 0.5em 0; line-height: 1.7; color: #bbb; }
+.md-body code {
+  background: rgba(255,255,255,0.06);
+  padding: 0.12em 0.4em;
+  border-radius: 3px;
+  font-size: 0.88em;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.md-body pre {
+  background: rgba(255,255,255,0.03);
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.md-body pre code { background: none; padding: 0; }
+.md-body ul, .md-body ol { padding-left: 1.5em; margin: 0.4em 0; }
+.md-body li { margin: 0.2em 0; line-height: 1.7; color: #bbb; }
+.md-body a { color: var(--color-accent); text-decoration: none; }
+.md-body a:hover { text-decoration: underline; }
+.md-body blockquote {
+  border-left: 2px solid rgba(200,149,108,0.4);
+  padding-left: 1em;
+  color: #777;
+  margin: 0.5em 0;
+}
+.md-body strong { color: #e0e0e0; font-weight: 600; }
+.md-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 1.5em 0; }
+.md-body table { border-collapse: collapse; width: 100%; margin: 0.6em 0; }
+.md-body th, .md-body td { border: 1px solid rgba(255,255,255,0.06); padding: 0.4em 0.7em; text-align: left; color: #bbb; }
+.md-body th { background: rgba(255,255,255,0.03); font-weight: 600; color: #ddd; }
+
+.wiki-link {
+  color: var(--color-link);
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(212,165,116,0.4);
+  transition: opacity 0.15s;
+}
+.wiki-link:hover { opacity: 0.7; }
+
+/* ── Punk text formatting (rendered HTML spans) ── */
+.md-body u { text-decoration: underline; text-decoration-color: var(--color-accent); text-decoration-thickness: 2px; }
+.md-body mark {
+  background: linear-gradient(100deg, transparent 1%, rgba(255,45,120,0.45) 4%, rgba(255,45,120,0.45) 96%, transparent 99%);
+  color: #fff;
+  padding: 0 0.2em;
+  border-radius: 2px;
+}
+.md-body mark.yellow { background: linear-gradient(100deg, transparent 1%, rgba(255,230,0,0.4) 4%, rgba(255,230,0,0.4) 96%, transparent 99%); color: #fff; }
+.md-body mark.green { background: linear-gradient(100deg, transparent 1%, rgba(163,255,18,0.35) 4%, rgba(163,255,18,0.35) 96%, transparent 99%); color: #fff; }
+.md-body .txt-pink { color: #ff2d78; }
+.md-body .txt-yellow { color: #ffe600; }
+.md-body .txt-green { color: #a3ff12; }
+.md-body .txt-cyan { color: #00e5ff; }
+
+/* ── Draggable calque overlay ── */
+.calque-overlay {
+  position: fixed;
+  z-index: 40;
+  border: 2px dashed var(--color-accent);
+  border-radius: 4px;
+  background: rgba(255, 45, 120, 0.10);
+  backdrop-filter: none;
+  cursor: move;
+  user-select: none;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 30px rgba(255,45,120,0.15);
+}
+.calque-overlay.yellow { border-color: #ffe600; background: rgba(255,230,0,0.10); box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 30px rgba(255,230,0,0.12); }
+.calque-overlay.green { border-color: #a3ff12; background: rgba(163,255,18,0.08); box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 30px rgba(163,255,18,0.10); }
+.calque-overlay.cyan { border-color: #00e5ff; background: rgba(0,229,255,0.08); box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 8px 30px rgba(0,229,255,0.10); }
+.calque-handle {
+  position: absolute;
+  top: -10px; left: -10px;
+  width: 20px; height: 20px;
+  background: var(--color-accent);
+  border-radius: 4px;
+  cursor: move;
+}
+.calque-resize {
+  position: absolute;
+  bottom: -8px; right: -8px;
+  width: 16px; height: 16px;
+  background: #fff;
+  border-radius: 3px;
+  cursor: nwse-resize;
+}
