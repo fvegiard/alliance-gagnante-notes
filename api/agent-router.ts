@@ -3,16 +3,7 @@ import { eq } from "drizzle-orm";
 import { createRouter, authedQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { notes } from "../db/schema";
-import { env } from "./lib/env";
-
-const SYSTEM_PROMPT = `You are the built-in Note Agent of a personal notes app. You help the user understand, organize, and clean up their notes. You are given the user's notes (titles + content) as JSON context, then the user's task.
-
-Rules:
-- Be concise and concrete. Reference notes by their exact titles.
-- When the task is "organize" or "find important things", produce Markdown with clear sections.
-- API keys, tokens, and secrets: quote them exactly as found, always citing the source note title, and add a short warning that live secrets should be moved to a password manager.
-- Never invent content that is not in the notes.
-- Use wiki-link syntax [[Exact Note Title]] when referencing notes.`;
+import { callAgentLLM, runAgentChain } from "./agent-chain";
 
 const noteInput = z.object({
   title: z.string(),
@@ -25,13 +16,13 @@ export const agentRouter = createRouter({
       z.object({
         task: z.string().min(1).max(2000),
         notes: z.array(noteInput).max(100),
+        history: z
+          .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) }))
+          .max(20)
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      if (!env.kimiApiKey) {
-        throw new Error("AI agent is not configured (missing KIMI_API_KEY)");
-      }
-
       // Only this user's notes may be sent — re-fetch from DB to be safe
       const db = getDb();
       const userNotes = await db
@@ -43,37 +34,13 @@ export const agentRouter = createRouter({
         .filter((n) => allowed.has(n.title))
         .map((n) => ({ title: n.title, content: allowed.get(n.title)! }));
 
-      const resp = await fetch(`${env.kimiApiBase}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${env.kimiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: env.kimiModel,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: `NOTES CONTEXT (JSON):\n${JSON.stringify(context)}\n\nTASK:\n${input.task}`,
-            },
-          ],
-          max_tokens: 4096,
-          temperature: 0.3,
-        }),
+      const { answer, modelUsed, replacedModels, toolCalls } = await runAgentChain({
+        userId: ctx.user.id,
+        task: input.task,
+        notes: context,
+        history: input.history,
       });
-
-      if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(`Kimi API error (${resp.status}): ${text.slice(0, 300)}`);
-      }
-
-      const data = (await resp.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
-      const answer = data.choices?.[0]?.message?.content?.trim();
-      if (!answer) throw new Error("Kimi returned an empty response");
-      return { answer };
+      return { answer, modelUsed, replacedModels, toolCalls };
     }),
 
   /** AI organizer: assigns every note a folder + tags. */
@@ -84,9 +51,6 @@ export const agentRouter = createRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      if (!env.kimiApiKey) {
-        throw new Error("AI agent is not configured (missing KIMI_API_KEY)");
-      }
       const db = getDb();
       const userNotes = await db
         .select({ id: notes.id, title: notes.title, content: notes.content })
@@ -95,35 +59,20 @@ export const agentRouter = createRouter({
       const allowed = new Map(userNotes.map((n) => [n.id, n]));
       const context = input.notes.filter((n) => allowed.has(n.id));
 
-      const resp = await fetch(`${env.kimiApiBase}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${env.kimiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: env.kimiModel,
-          messages: [
-            {
-              role: "system",
-              content:
-                "You organize notes into folders. Reply with ONLY a JSON array, no prose, no code fence: " +
-                '[{"id": number, "folder": string, "tags": string[]}]. ' +
-                "Folders: short names like AI, Dev, Keys, Personal, Projects, Ideas, Reference, Archive. Max 8 folders. " +
-                "2-4 short tags per note. Every input note id must appear exactly once.",
-            },
-            { role: "user", content: JSON.stringify(context.map((n) => ({ id: n.id, title: n.title, preview: n.content.slice(0, 600) }))) },
-          ],
-          max_tokens: 3000,
-          temperature: 0.2,
-        }),
-      });
-      if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(`Kimi API error (${resp.status}): ${text.slice(0, 300)}`);
-      }
-      const data = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
-      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      const { content: raw, modelUsed, replacedModels } = await callAgentLLM(
+        [
+          {
+            role: "system",
+            content:
+              "You organize notes into folders. Reply with ONLY a JSON array, no prose, no code fence: " +
+              '[{"id": number, "folder": string, "tags": string[]}]. ' +
+              "Folders: short names like AI, Dev, Keys, Personal, Projects, Ideas, Reference, Archive. Max 8 folders. " +
+              "2-4 short tags per note. Every input note id must appear exactly once.",
+          },
+          { role: "user", content: JSON.stringify(context.map((n) => ({ id: n.id, title: n.title, preview: n.content.slice(0, 600) }))) },
+        ],
+        { maxTokens: 3000, temperature: 0.2 }
+      );
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("AI did not return a JSON plan");
       const plan = JSON.parse(jsonMatch[0]) as { id: number; folder?: string; tags?: string[] }[];
@@ -141,6 +90,6 @@ export const agentRouter = createRouter({
           .where(eq(notes.id, p.id));
         updated++;
       }
-      return { updated, total: context.length };
+      return { updated, total: context.length, modelUsed, replacedModels };
     }),
 });
