@@ -1,21 +1,18 @@
 export type TokenResponse = {
   access_token: string;
+  token_type: string;
+  expires_in: number;
   refresh_token?: string;
-  expires_in?: number;
+  scope: string;
 };
 
 export type SessionPayload = {
-  id: number;
   unionId: string;
-  name: string | null;
-  email: string | null;
-  avatar: string | null;
-  role: "user" | "admin";
+  clientId: string;
 };
 
 export type UserProfile = {
-  unionId: string;
-  nickname?: string;
-  avatar?: string;
-  email?: string;
+  user_id: string;
+  name: string;
+  avatar_url: string;
 };
