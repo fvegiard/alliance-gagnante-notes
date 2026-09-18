@@ -19,4 +19,8 @@ export const env = {
   kimiApiKey: process.env.KIMI_API_KEY ?? "",
   kimiApiBase: process.env.KIMI_API_BASE ?? "https://api.kimi.com/coding/v1",
   kimiModel: process.env.KIMI_MODEL ?? "kimi-for-coding",
+  nvidiaApiKey: process.env.NVIDIA_API_KEY ?? "",
+  nvidiaApiBase: process.env.NVIDIA_API_BASE ?? "https://integrate.api.nvidia.com/v1",
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+  ollamaModel: process.env.OLLAMA_MODEL ?? "qwen2.5:7b",
 };
