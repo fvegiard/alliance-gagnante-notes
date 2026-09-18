@@ -1,29 +1,139 @@
-# Alliance Gagnante — Francis Végiard Dev
+# Personal Notes Fullstack Template
 
-Punk-styled full-stack personal notes app. Markdown + wiki links, D3 swarm knowledge graph, built-in Kimi AI agent, credentials vault, AI connectors (give any AI read access to your notes with a token), folders with AI auto-organization, and a companion Windows desktop widget.
-
-## Stack
-
-- React 19 + TypeScript + Vite + Tailwind + shadcn/ui
-- tRPC 11 + Hono + Drizzle ORM + MySQL
-- Kimi OAuth 2.0
-- D3.js knowledge graph with folder/tag swarm clustering
-
-## Run
-
-```bash
-cp .env.example .env   # fill in values
-npm ci
-npm run db:push
-npm run dev
-```
+A fullstack personal notes / knowledge-base app with wiki-style `[[links]]`, Markdown rendering, a D3-powered knowledge graph view, a real-time moon-phase widget, and four cinematic backgrounds (moonlit ripple, silk flow field, rain on glass, solid color). Per-user note persistence with automatic starter-notes seeding on first sign-in.
 
 ## Features
 
-- 📝 Markdown notes with [[wiki links]]
-- 📁 Folders + ✦ AI Organize (Kimi sorts notes into folders with tags)
-- 🕸️ Swarm knowledge graph clustered by folder/tag
-- ✦ Note Agent — scans for keys/tasks/links, AI-powered digests
-- 🔌 AI Connectors — register any AI, copy-paste instructions give it read access via token
-- ▱ Calque — draggable overlay rectangle for framing text
-- 🖥️ Desktop widget (Electron) with headless AI — see `widget/` if included
+- Markdown editor with live preview (GFM: tables, code blocks, task lists)
+- Wiki-style `[[links]]` between notes — clicking navigates to or auto-creates the target note
+- D3 force-directed knowledge graph view over all notes + links
+- Four procedural backgrounds: moonlit ripple, silk flow field, rain on glass, and a solid-color picker
+- Real-time moon-phase widget (canvas-rendered)
+- Liquid-glass morphism UI (frosted panels)
+- Auth-gated per-user persistence via tRPC + MySQL; localStorage fallback when unauthenticated
+- Starter notes auto-seeded into MySQL on first sign-in
+
+## Tech Stack
+
+- React 19 + TypeScript + Vite
+- Tailwind CSS v3 + shadcn/ui
+- tRPC 11 + Hono + Drizzle ORM + MySQL
+- Kimi OAuth 2.0 authentication
+- D3.js (knowledge graph)
+- `react-markdown` + `remark-gfm`
+- React Router v7
+
+## Quick Start
+
+1. Clone / extract this template
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env` and fill in `DATABASE_URL` and Kimi OAuth credentials
+4. Run database migrations: `npx drizzle-kit push`
+5. (Optional) Seed starter notes for a specific user: `npx tsx db/seed.ts <userId>`
+6. Run the dev server: `npm run dev`
+7. Build for production: `npm run build`
+
+## Configuration
+
+Content is edited in two places — do not modify component files:
+
+- **`src/config.ts`** — site title, header labels, background options, sidebar / editor / graph UI strings, moon phase labels, and `starterNotes` (shown to unauthenticated users and as a local fallback)
+- **`api/notes-router.ts`** — the server-side `STARTER_NOTES` array, auto-seeded into MySQL for each new user on first login
+
+See `info.md` (outer folder) for every config field with constraints.
+
+## Database Schema
+
+Two tables, defined in `db/schema.ts`:
+
+- **`users`** — Kimi OAuth-managed (id, unionId, name, email, avatar, role)
+- **`notes`** — user-owned notes (id, userId, title, content, tags, source, createdAt, updatedAt)
+
+Seed script: `npx tsx db/seed.ts <userId>`
+
+## Required Assets
+
+No images or videos required — every background is procedural (WebGL / Canvas). Content is plain Markdown.
+
+## Project Structure
+
+```
+.
+├── api/                # tRPC routers, Hono server, Kimi OAuth, notes router with STARTER_NOTES
+├── contracts/          # Shared tRPC types between server and client
+├── db/                 # Drizzle schema, migrations, seed
+├── public/             # Static assets
+├── src/
+│   ├── components/     # UI components (editor, sidebar, graph, backgrounds, moon widget)
+│   ├── hooks/          # Custom hooks (notes, auth)
+│   ├── config.ts       # All editable UI strings and starter notes (client)
+│   ├── store.ts        # localStorage fallback store
+│   └── App.tsx         # Root component
+├── Dockerfile
+├── drizzle.config.ts
+├── .backend-features.json  # Declares ["auth", "db"]
+└── .env.example
+```
+
+## Design
+
+- Background: `#000000` or one of four cinematic WebGL / Canvas modes
+- Foreground text: `#e0e0e0`
+- Accent: `#c8956c` (warm amber) · Link color: `#d4a574`
+- UI: liquid-glass frosted panels
+
+## 🦙 Ollama integration
+
+Bring your own models. The app can talk to a **local Ollama** running on your
+machine (`http://localhost:11434`) or anywhere reachable — LAN box, Tailscale
+IP (`http://192.168.1.108:11434`), whatever.
+
+Set two env vars (see `.env.example`):
+
+```bash
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
+```
+
+Two ways Ollama gets used:
+
+- **Automatic fallback step.** The note agent's model chain is
+  `NVIDIA K3 → GLM-5-3-flash → GLM-5-3 → … → 🦙 Ollama → Kimi`. If every
+  hosted NVIDIA model is gone or erroring, the chain knocks on your local
+  Ollama before giving up (Kimi is the last resort). Offline Ollama? It just
+  skips ahead — no drama.
+- **Manual direct mode.** In the Note Agent panel there's a segmented picker:
+  `⚡ NVIDIA K3 | 🦙 Ollama`. Pick 🦙 and the panel health-checks your instance
+  (green chip with model count, or a red "run `ollama serve`" chip), lets you
+  pick any locally installed model from a dropdown, and sends note tasks
+  **only** to that model — the fallback chain is bypassed. Perfect for testing
+  your local beasts.
+
+## ⌨️ CLI: invoke the agent from anywhere
+
+A tiny Node/TSX CLI lives in `cli/` — it drives the note agent with nothing
+but a connector token (`agc_…`, created in the app's **Connections** page).
+The server runs the full chain (NVIDIA → Ollama → Kimi) over your notes.
+
+```bash
+npm i -g tsx                       # or just use npx
+cp cli/config.example.json cli/config.json   # fill in apiUrl + token
+npx tsx cli/agent.ts "organize my notes"
+```
+
+PowerShell alias for the Windows + Ollama crowd:
+
+```powershell
+function Invoke-NoteAgent { npx tsx C:\path\to\app\cli\agent.ts $args }
+Invoke-NoteAgent "what did I forget this week?"
+```
+
+Full details in [`cli/README.md`](cli/README.md). `cli/config.json` is
+git-ignored — never commit a live token.
+
+## Notes
+
+- Don't modify component logic unless fixing a real bug
+- All UI copy lives in `src/config.ts`; server-side starter content lives in `api/notes-router.ts`
+- Wiki-link target titles must match a note title (case-insensitive) for resolution to work
+- The `src/store.ts` localStorage fallback is intentional — it lets the app work for unauthenticated visitors and gracefully hands off to the server store on login
