@@ -7,6 +7,7 @@ import {
   timestamp,
   bigint,
   json,
+  index,
 } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
@@ -60,6 +61,29 @@ export const aiConnectors = mysqlTable("ai_connectors", {
 });
 
 export type AiConnector = typeof aiConnectors.$inferSelect;
+
+export const aiProposals = mysqlTable(
+  "ai_proposals",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // uuid
+    userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+    kind: mysqlEnum("kind", ["reorg", "todo", "email", "digest"]).notNull(),
+    title: varchar("title", { length: 500 }).notNull(),
+    detail: text("detail"),
+    payload: json("payload"), // e.g. { moves: [{ noteId, fromFolder, toFolder }] } for reorg
+    status: mysqlEnum("status", ["pending", "approved", "rejected", "done"])
+      .default("pending")
+      .notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    resolvedAt: timestamp("resolvedAt"),
+  },
+  (t) => [index("ai_proposals_user_status").on(t.userId, t.status)]
+);
+
+export type AiProposal = typeof aiProposals.$inferSelect;
+export type InsertAiProposal = typeof aiProposals.$inferInsert;
+export type AiProposalKind = AiProposal["kind"];
+export type ReorgMove = { noteId: number; fromFolder: string | null; toFolder: string };
 //
 // Example:
 // export const posts = mysqlTable("posts", {

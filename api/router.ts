@@ -3,6 +3,7 @@ import { notesRouter } from "./notes-router";
 import { agentRouter } from "./agent-router";
 import { connectorsRouter } from "./connectors-router";
 import { ollamaRouter } from "./ollama-router";
+import { autopilotRouter } from "./autopilot-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -12,6 +13,7 @@ export const appRouter = createRouter({
   agent: agentRouter,
   connectors: connectorsRouter,
   ollama: ollamaRouter,
+  autopilot: autopilotRouter,
 });
 
 export type AppRouter = typeof appRouter;
