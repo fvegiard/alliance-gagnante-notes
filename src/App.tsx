@@ -12,6 +12,7 @@ import Sidebar from './components/Sidebar';
 import NoteEditor from './components/NoteEditor';
 import GraphView from './components/GraphView';
 import AgentPanel from './components/AgentPanel';
+import AutopilotPanel from './components/AutopilotPanel';
 import ConnectionsPage from './components/ConnectionsPage';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
@@ -81,6 +82,7 @@ function NoteApp() {
   const [bgColor, setBgColor] = useState(() => localStorage.getItem(BG_COLOR_KEY) || backgroundConfig.defaultSolidColor);
   const [showBgMenu, setShowBgMenu] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
+  const [showAutopilot, setShowAutopilot] = useState(false);
 
   const handleAgentUpsert = useCallback(async (title: string, content: string, tags: string[]) => {
     const existing = notes.find((n) => n.title === title);
@@ -202,6 +204,14 @@ function NoteApp() {
             </button>
 
             <button
+              onClick={() => setShowAutopilot(!showAutopilot)}
+              className="ml-1 px-2 py-1 text-xs text-[#444] hover:text-accent transition-colors"
+              title="🧠 Autopilote — propositions de l'IA"
+            >
+              🧠
+            </button>
+
+            <button
               onClick={() => setShowBgMenu(!showBgMenu)}
               className="ml-1 px-2 py-1 text-xs text-[#444] hover:text-[#888] transition-colors"
               title={headerConfig.backgroundButtonTitle}
@@ -268,6 +278,10 @@ function NoteApp() {
           onUpsertNote={handleAgentUpsert}
           onClose={() => setShowAgent(false)}
         />
+      )}
+
+      {showAutopilot && (
+        <AutopilotPanel onClose={() => setShowAutopilot(false)} />
       )}
 
       {showBgMenu && (
