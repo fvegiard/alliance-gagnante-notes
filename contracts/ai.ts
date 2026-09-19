@@ -30,7 +30,13 @@ export type AgentResult = {
  * Selectable agent backends: NVIDIA hosted chain, a local Ollama instance,
  * or the Kimi coding endpoint.
  */
-export const AGENT_BACKENDS = ["nvidia", "ollama", "kimi"] as const;
+export const AGENT_BACKENDS = ["kimi", "nvidia", "ollama"] as const;
 export type AgentBackend = (typeof AGENT_BACKENDS)[number];
+
+/**
+ * Default agent backend: Kimi direct (paid plan). The "nvidia" backend is the
+ * heavy multi-model orchestration chain with automatic fallbacks.
+ */
+export const DEFAULT_BACKEND: AgentBackend = "kimi";
 
 export type OllamaConfig = { baseUrl: string; model: string };

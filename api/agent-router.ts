@@ -4,11 +4,15 @@ import { createRouter, authedQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { notes } from "../db/schema";
 import { callAgentLLM, runAgentChain } from "./agent-chain";
+import { AGENT_BACKENDS, DEFAULT_BACKEND } from "@contracts/ai";
 
 const noteInput = z.object({
   title: z.string(),
   content: z.string().max(8000),
 });
+
+/** Backend selection: "kimi" = Kimi direct (default), "nvidia" = orchestration chain. */
+const backendInput = z.enum(AGENT_BACKENDS).optional().default(DEFAULT_BACKEND);
 
 export const agentRouter = createRouter({
   ask: authedQuery
@@ -20,6 +24,7 @@ export const agentRouter = createRouter({
           .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) }))
           .max(20)
           .optional(),
+        backend: backendInput,
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -39,6 +44,7 @@ export const agentRouter = createRouter({
         task: input.task,
         notes: context,
         history: input.history,
+        backend: input.backend === "ollama" ? "nvidia" : input.backend,
       });
       return { answer, modelUsed, replacedModels, toolCalls };
     }),
@@ -48,6 +54,7 @@ export const agentRouter = createRouter({
     .input(
       z.object({
         notes: z.array(z.object({ id: z.number(), title: z.string(), content: z.string().max(2000) })).max(200),
+        backend: backendInput,
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -71,7 +78,7 @@ export const agentRouter = createRouter({
           },
           { role: "user", content: JSON.stringify(context.map((n) => ({ id: n.id, title: n.title, preview: n.content.slice(0, 600) }))) },
         ],
-        { maxTokens: 3000, temperature: 0.2 }
+        { maxTokens: 3000, temperature: 0.2, backend: input.backend === "ollama" ? "nvidia" : input.backend }
       );
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("AI did not return a JSON plan");
