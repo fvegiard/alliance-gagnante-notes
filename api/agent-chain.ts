@@ -3,7 +3,7 @@ import { getDb } from "./queries/connection";
 import { notes } from "../db/schema";
 import { env } from "./lib/env";
 import { AGENT_MODELS } from "@contracts/ai";
-import type { ReplacedModel } from "@contracts/ai";
+import type { AgentBackend, ReplacedModel } from "@contracts/ai";
 
 /* ------------------------------------------------------------------ */
 /* Shared LLM caller with NVIDIA model fallback chain → Kimi fallback  */
@@ -39,6 +39,14 @@ export type CallOpts = {
   temperature: number;
   /** OpenAI-style tool definitions; sent with tool_choice "auto". */
   tools?: unknown[];
+  /**
+   * "kimi" (default-friendly direct mode): call the Kimi coding endpoint
+   * directly, skipping the NVIDIA orchestration chain; on failure (network
+   * error / 5xx / 429) automatically falls back to the full NVIDIA chain and
+   * records the reason in `replacedModels` as "kimi-fallback: <error>".
+   * "nvidia" or undefined: full orchestration chain (NVIDIA → Ollama → Kimi).
+   */
+  backend?: AgentBackend;
 };
 
 /** Body text patterns that mean "this model no longer exists on the endpoint". */
@@ -94,6 +102,44 @@ export async function callAgentLLM(messages: ChatMessage[], opts: CallOpts): Pro
       });
     return { content, toolCalls };
   };
+
+  /** Direct call to the Kimi coding endpoint (throws on HTTP/network error). */
+  const callKimi = async (): Promise<{ content: string; toolCalls: ToolCall[] }> => {
+    const resp = await fetch(`${env.kimiApiBase}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.kimiApiKey}`,
+      },
+      body: bodyFor(env.kimiModel),
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`Kimi API error (${resp.status}): ${text.slice(0, 300)}`);
+    }
+    const { content, toolCalls } = parseMessage((await resp.json()) as ChatResponse);
+    if (!content && toolCalls.length === 0) throw new Error("Kimi returned an empty response");
+    return { content, toolCalls };
+  };
+
+  // Kimi direct mode: skip the NVIDIA orchestration chain entirely. If the
+  // direct call fails (network error, 5xx, 429, …), fall back to the full
+  // orchestration chain as a safety net and record why.
+  if (opts.backend === "kimi") {
+    if (env.kimiApiKey) {
+      try {
+        const { content, toolCalls } = await callKimi();
+        return { content, toolCalls, modelUsed: env.kimiModel, replacedModels };
+      } catch (e) {
+        replacedModels.push({
+          model: env.kimiModel,
+          reason: `kimi-fallback: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300),
+        });
+      }
+    } else {
+      replacedModels.push({ model: env.kimiModel, reason: "kimi-fallback: KIMI_API_KEY is not set" });
+    }
+  }
 
   if (env.nvidiaApiKey) {
     for (const [index, model] of AGENT_MODELS.entries()) {
@@ -173,22 +219,9 @@ export async function callAgentLLM(messages: ChatMessage[], opts: CallOpts): Pro
     transientErrors.push(`ollama/${env.ollamaModel}: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  // Last-resort fallback: the legacy Kimi endpoint.
+  // Last-resort fallback: the Kimi coding endpoint.
   if (env.kimiApiKey) {
-    const resp = await fetch(`${env.kimiApiBase}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${env.kimiApiKey}`,
-      },
-      body: bodyFor(env.kimiModel),
-    });
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`Kimi API error (${resp.status}): ${text.slice(0, 300)}`);
-    }
-    const { content, toolCalls } = parseMessage((await resp.json()) as ChatResponse);
-    if (!content && toolCalls.length === 0) throw new Error("Kimi returned an empty response");
+    const { content, toolCalls } = await callKimi();
     return { content, toolCalls, modelUsed: env.kimiModel, replacedModels };
   }
 
@@ -301,6 +334,8 @@ export type AgentChainInput = {
   task: string;
   notes: { title: string; content: string }[];
   history?: { role: "user" | "assistant"; content: string }[];
+  /** "kimi" = Kimi direct (fallback to orchestration chain); "nvidia"/undefined = full chain. */
+  backend?: AgentBackend;
 };
 
 export type AgentChainResult = {
@@ -336,7 +371,12 @@ export async function runAgentChain(input: AgentChainInput): Promise<AgentChainR
   let modelUsed = "";
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-    const result = await callAgentLLM(messages, { maxTokens: 4096, temperature: 0.3, tools: AGENT_TOOLS });
+    const result = await callAgentLLM(messages, {
+      maxTokens: 4096,
+      temperature: 0.3,
+      tools: AGENT_TOOLS,
+      backend: input.backend,
+    });
     modelUsed = result.modelUsed;
     for (const r of result.replacedModels) {
       if (!replacedModels.some((x) => x.model === r.model)) replacedModels.push(r);

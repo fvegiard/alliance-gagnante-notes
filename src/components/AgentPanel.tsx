@@ -45,7 +45,8 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
   const report = useMemo(() => scanNotes(notes), [notes]);
   const askMutation = trpc.agent.ask.useMutation();
   const ollamaAskMutation = trpc.ollama.ask.useMutation();
-  const [backend, setBackend] = useState<BackendSelection>({ backend: 'nvidia' });
+  const [backend, setBackend] = useState<BackendSelection>({ backend: 'kimi' });
+  const [kimiDirect, setKimiDirect] = useState(false);
 
   const counts = {
     keys: report.keys.length,
@@ -100,6 +101,7 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
     setError(null);
     setPreview(null);
     setModelUsed(null);
+    setKimiDirect(false);
     setReplacedModels([]);
     setToolsUsed([]);
     try {
@@ -116,9 +118,10 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
         ({ answer, modelUsed: used } = res);
         replaced = [];
       } else {
-        const res = await askMutation.mutateAsync(payload);
+        const res = await askMutation.mutateAsync({ ...payload, backend: backend.backend });
         ({ answer, modelUsed: used, replacedModels: replaced, toolCalls } = res);
       }
+      setKimiDirect(backend.backend === 'kimi' && used === 'kimi-for-coding');
       await onUpsertNote(AI_NOTE_TITLES[t.target], answer, ['agent', 'ai', t.id]);
       await persistModelStatus(replaced, used);
       setModelUsed(used);
@@ -146,7 +149,11 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
 
         <div className="rounded-lg bg-accent/10 border border-accent/20 p-2.5">
           <div className="text-[11px] font-medium text-accent mb-1.5">
-            {backend.backend === 'ollama' ? '🦙 AI Agent (Ollama — local)' : '✦ AI Agent (NVIDIA)'}
+            {backend.backend === 'ollama'
+              ? '🦙 AI Agent (Ollama — local)'
+              : backend.backend === 'kimi'
+                ? '🌙 AI Agent (Kimi — direct)'
+                : '⚡ AI Agent (Orchestration)'}
           </div>
           <div className="flex flex-col gap-1.5">
             {AI_TASKS.map((t) => (
@@ -161,7 +168,10 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
             ))}
           </div>
           <p className="text-[10px] text-[#666] mt-1.5">The agent reads all your notes and writes the result as a new note.</p>
-          {modelUsed && (
+          {modelUsed && kimiDirect && (
+            <div className="mt-1.5 text-[10px] font-medium text-accent">🌙 Kimi (direct)</div>
+          )}
+          {modelUsed && !kimiDirect && (
             <div className="mt-1.5 text-[10px] font-medium text-accent">⚡ model: {modelUsed}</div>
           )}
           {toolsUsed.length > 0 && (

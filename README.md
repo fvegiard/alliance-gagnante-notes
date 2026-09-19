@@ -82,6 +82,22 @@ No images or videos required — every background is procedural (WebGL / Canvas)
 - Accent: `#c8956c` (warm amber) · Link color: `#d4a574`
 - UI: liquid-glass frosted panels
 
+## 🤖 Note Agent backends
+
+The Note Agent panel offers three backends (segmented picker, in order):
+
+- **🌙 Kimi (default).** Direct calls to the Kimi coding endpoint
+  (`kimi-for-coding`) on your paid plan — fast and simple. If the Kimi call
+  fails (network error, 5xx, 429), the agent automatically falls back to the
+  full orchestration chain as a safety net and records a
+  `kimi-fallback: <error>` entry in the replaced-models report.
+- **⚡ Orchestration.** The heavy multi-model tool: an ordered fallback chain
+  of NVIDIA-hosted models (`Kimi K3 → GLM-5-3-flash → GLM-5-3 → Nemotron →
+  …`) → your local Ollama → Kimi as last resort. Models that no longer exist
+  are skipped and reported in the `⚠️ AI Models Status` note.
+- **🦙 Ollama.** Local only — bypasses every hosted endpoint and uses just
+  your own models.
+
 ## 🦙 Ollama integration
 
 Bring your own models. The app can talk to a **local Ollama** running on your
@@ -103,7 +119,7 @@ Two ways Ollama gets used:
   Ollama before giving up (Kimi is the last resort). Offline Ollama? It just
   skips ahead — no drama.
 - **Manual direct mode.** In the Note Agent panel there's a segmented picker:
-  `⚡ NVIDIA K3 | 🦙 Ollama`. Pick 🦙 and the panel health-checks your instance
+  `🌙 Kimi | ⚡ Orchestration | 🦙 Ollama`. Pick 🦙 and the panel health-checks your instance
   (green chip with model count, or a red "run `ollama serve`" chip), lets you
   pick any locally installed model from a dropdown, and sends note tasks
   **only** to that model — the fallback chain is bypassed. Perfect for testing

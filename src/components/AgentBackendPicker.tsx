@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { trpc } from '../providers/trpc';
 
-export type AgentBackendChoice = 'nvidia' | 'ollama';
+export type AgentBackendChoice = 'kimi' | 'nvidia' | 'ollama';
 
 export interface BackendSelection {
   backend: AgentBackendChoice;
@@ -15,7 +15,8 @@ interface AgentBackendPickerProps {
 
 /**
  * Backend selector for the Note Agent:
- *  ⚡ NVIDIA K3 (auto-fallback chain: NVIDIA → Ollama → Kimi)
+ *  🌙 Kimi direct (default — paid Kimi plan, falls back to orchestration on error)
+ *  ⚡ Orchestration (heavy multi-model chain: NVIDIA → Ollama → Kimi)
  *  🦙 Ollama direct (force the user's local models only)
  * Shows an online/offline chip and a model picker when Ollama is selected.
  */
@@ -45,14 +46,22 @@ export default function AgentBackendPicker({ value, onChange }: AgentBackendPick
 
   return (
     <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] p-2.5 flex flex-col gap-2">
-      <div className="grid grid-cols-2 gap-1 rounded-md bg-white/[0.04] p-0.5">
+      <div className="grid grid-cols-3 gap-1 rounded-md bg-white/[0.04] p-0.5">
+        <button
+          onClick={() => select('kimi')}
+          className={`px-2 py-1.5 text-[11px] rounded-md transition-colors ${
+            value.backend === 'kimi' ? 'bg-accent/25 text-accent font-medium' : 'text-[#888] hover:text-[#bbb]'
+          }`}
+        >
+          🌙 Kimi
+        </button>
         <button
           onClick={() => select('nvidia')}
           className={`px-2 py-1.5 text-[11px] rounded-md transition-colors ${
             value.backend === 'nvidia' ? 'bg-accent/25 text-accent font-medium' : 'text-[#888] hover:text-[#bbb]'
           }`}
         >
-          ⚡ NVIDIA K3
+          ⚡ Orchestration
         </button>
         <button
           onClick={() => select('ollama')}
@@ -64,9 +73,15 @@ export default function AgentBackendPicker({ value, onChange }: AgentBackendPick
         </button>
       </div>
 
+      {value.backend === 'kimi' && (
+        <p className="text-[10px] text-[#666]">
+          Default — Kimi direct on your paid plan. Falls back to the orchestration chain if Kimi is unreachable.
+        </p>
+      )}
+
       {value.backend === 'nvidia' && (
         <p className="text-[10px] text-[#666]">
-          Full auto-fallback chain: NVIDIA models → your local Ollama (if reachable) → Kimi.
+          Heavy multi-model orchestration chain: NVIDIA models → your local Ollama (if reachable) → Kimi.
         </p>
       )}
 
