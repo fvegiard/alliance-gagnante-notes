@@ -15,6 +15,7 @@ export interface GraphNode {
   linkCount: number;
   folder?: string | null;
   tags?: string[];
+  updatedAt?: number;
 }
 
 export interface GraphEdge {

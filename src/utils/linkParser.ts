@@ -45,6 +45,7 @@ export function buildGraphData(notes: Note[]): GraphData {
     linkCount: degree.get(n.id) || 0,
     folder: n.folder ?? null,
     tags: n.tags ?? [],
+    updatedAt: n.updatedAt,
   }));
 
   return { nodes, edges };
