@@ -171,7 +171,19 @@ export default function Sidebar({ notes, selectedId, search, onSearch, onSelect,
       <div className="h-full flex flex-col relative z-10">
         <MoonPhase />
 
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2 flex gap-1.5">
+          {(() => {
+            const today = notes.find((n) => n.title === "📅 Aujourd'hui");
+            return today ? (
+              <button
+                onClick={() => onSelect(today.id)}
+                className="px-2 py-2 text-[11px] rounded-lg bg-accent/15 text-accent hover:bg-accent/25 transition-colors shrink-0"
+                title="Ouvrir la note « 📅 Aujourd'hui »"
+              >
+                📅
+              </button>
+            ) : null;
+          })()}
           <input
             type="text"
             value={search}
