@@ -5,6 +5,7 @@ import { getDb } from "./queries/connection";
 import { aiConnectors, notes } from "../db/schema";
 import { env } from "./lib/env";
 import { runAgentChain } from "./agent-chain";
+import { recordModelAlerts } from "./agent-alerts";
 
 const NOTE_AGENT_SYSTEM =
   "You are the Note Agent, a ruthless personal-knowledge assistant. " +
@@ -140,11 +141,12 @@ export const ollamaRouter = createRouter({
       const conn = await validateConnectorToken(input.token);
       const userNotes = await notesForUser(conn.userId);
       const context = userNotes.map((n) => ({ title: n.title, content: n.content.slice(0, 8000) }));
-      const { answer, modelUsed } = await runAgentChain({
+      const { answer, modelUsed, replacedModels } = await runAgentChain({
         userId: conn.userId,
         task: input.task,
         notes: context,
       });
-      return { answer, modelUsed };
+      await recordModelAlerts(conn.userId, replacedModels, modelUsed);
+      return { answer, modelUsed, replacedModels };
     }),
 });

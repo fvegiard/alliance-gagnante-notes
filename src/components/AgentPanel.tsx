@@ -3,6 +3,7 @@ import type { Note } from '../types';
 import { scanNotes, buildKeysNote, buildDigestNote, AGENT_NOTE_TITLES } from '../utils/agent';
 import { trpc } from '../providers/trpc';
 import AgentBackendPicker, { type BackendSelection } from './AgentBackendPicker';
+import { toast } from 'sonner';
 
 interface AgentPanelProps {
   notes: Note[];
@@ -15,9 +16,10 @@ const AI_NOTE_TITLES = {
   digest: '🧭 AI Digest',
 };
 
-const MODEL_STATUS_TITLE = '⚠️ AI Models Status';
-
 type ReplacedModel = { model: string; reason: string };
+
+/** "kimi-fallback: ..." = temporary fallback (🟡); gone/decommissioned = 🔴. */
+const isFallback = (reason: string) => /^kimi-fallback/i.test(reason);
 
 const AI_TASKS: { id: string; label: string; task: string; target: keyof typeof AI_NOTE_TITLES }[] = [
   {
@@ -74,26 +76,7 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
     }
   };
 
-  const persistModelStatus = async (replaced: ReplacedModel[], used: string) => {
-    if (replaced.length === 0) return;
-    const ts = new Date().toISOString();
-    const newRows = replaced.map(
-      (r) => `| \`${r.model}\` | ${r.reason.replace(/\|/g, '/')} | \`${used}\` | ${ts} |`
-    );
-    const existing = notes.find((n) => n.title === MODEL_STATUS_TITLE);
-    const priorRows = existing?.content.match(/^\| `.+` \|.*\|.*\|.*\|$/gm) ?? [];
-    const header =
-      '# ⚠️ AI Models Status\n\nSome models in the AI fallback chain no longer exist and were automatically replaced. This note is maintained by the Note Agent.';
-    const table = [
-      '## Replaced models',
-      '',
-      '| Model | Reason | Replaced by | Timestamp |',
-      '|---|---|---|---|',
-      ...priorRows,
-      ...newRows,
-    ].join('\n');
-    await onUpsertNote(MODEL_STATUS_TITLE, `${header}\n\n${table}\n`, ['agent', 'ai', 'models']);
-  };
+  // Alerts are persisted server-side into the "🚩 Alertes IA" note (see api/agent-alerts.ts).
 
   const runAI = async (t: (typeof AI_TASKS)[number]) => {
     setBusy(`ai-${t.id}`);
@@ -123,7 +106,13 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
       }
       setKimiDirect(backend.backend === 'kimi' && used === 'kimi-for-coding');
       await onUpsertNote(AI_NOTE_TITLES[t.target], answer, ['agent', 'ai', t.id]);
-      await persistModelStatus(replaced, used);
+      for (const r of replaced) {
+        toast.warning(
+          isFallback(r.reason)
+            ? `🟡 Fallback : ${r.model} → ${used} — alerte notée dans « 🚩 Alertes IA »`
+            : `🔴 Modèle ${r.model} délogué → ${used} — alerte notée dans « 🚩 Alertes IA »`
+        );
+      }
       setModelUsed(used);
       setReplacedModels(replaced);
       setToolsUsed([...new Set(toolCalls.map((tc) => tc.name))]);
@@ -177,15 +166,37 @@ export default function AgentPanel({ notes, onUpsertNote, onClose }: AgentPanelP
           {toolsUsed.length > 0 && (
             <div className="text-[10px] text-[#777]">🛠 tools used: {toolsUsed.join(', ')}</div>
           )}
-          {replacedModels.map((r) => (
+          {replacedModels.length > 0 && (
             <div
-              key={r.model}
-              className="mt-1 rounded-md border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[10px] text-amber-300"
-              title={r.reason}
+              className={`mt-1.5 rounded-lg border px-2.5 py-2 ${
+                replacedModels.some((r) => !isFallback(r.reason))
+                  ? 'border-red-400/40 bg-red-500/15'
+                  : 'border-amber-400/40 bg-amber-400/15'
+              }`}
             >
-              ⚠ {r.model} no longer exists — replaced by {modelUsed}
+              <div
+                className={`text-[11px] font-semibold ${
+                  replacedModels.some((r) => !isFallback(r.reason)) ? 'text-red-300' : 'text-amber-300'
+                }`}
+              >
+                🚩 {replacedModels.length} modèle{replacedModels.length > 1 ? 's' : ''}{' '}
+                {replacedModels.some((r) => !isFallback(r.reason)) ? 'délogué' : 'en fallback'}
+                {replacedModels.length > 1 ? 's' : ''} — alerte enregistrée dans la note « 🚩 Alertes IA »
+              </div>
+              <div className="mt-1.5 flex flex-col gap-1">
+                {replacedModels.map((r) => (
+                  <div
+                    key={r.model}
+                    className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[10px] text-amber-300"
+                    title={r.reason}
+                  >
+                    {isFallback(r.reason) ? '🟡' : '🔴'} ⚠ {r.model}{' '}
+                    {isFallback(r.reason) ? 'en fallback' : 'no longer exists'} — replaced by {modelUsed}
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
+          )}
         </div>
 
         <div className="grid grid-cols-5 gap-1 text-center">
