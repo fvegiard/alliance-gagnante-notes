@@ -4,6 +4,7 @@ import { createRouter, authedQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { notes } from "../db/schema";
 import { callAgentLLM, runAgentChain } from "./agent-chain";
+import { recordModelAlerts } from "./agent-alerts";
 import { AGENT_BACKENDS, DEFAULT_BACKEND } from "@contracts/ai";
 
 const noteInput = z.object({
@@ -46,6 +47,7 @@ export const agentRouter = createRouter({
         history: input.history,
         backend: input.backend === "ollama" ? "nvidia" : input.backend,
       });
+      await recordModelAlerts(ctx.user.id, replacedModels, modelUsed);
       return { answer, modelUsed, replacedModels, toolCalls };
     }),
 
@@ -80,6 +82,7 @@ export const agentRouter = createRouter({
         ],
         { maxTokens: 3000, temperature: 0.2, backend: input.backend === "ollama" ? "nvidia" : input.backend }
       );
+      await recordModelAlerts(ctx.user.id, replacedModels, modelUsed);
       const jsonMatch = raw.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("AI did not return a JSON plan");
       const plan = JSON.parse(jsonMatch[0]) as { id: number; folder?: string; tags?: string[] }[];
